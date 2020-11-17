@@ -105,6 +105,8 @@ namespace SADXOpenStates
                 {
                     hasSwitched = false;
                 }
+
+                System.Threading.Thread.Sleep(10);
             }
         }
 
