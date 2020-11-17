@@ -110,23 +110,29 @@ namespace SADXOpenStates
 
         public static void LoadState(SaveState state)
         {
+            // Write Position into memory
             m.WriteMemory("base+03742E10,20", "float", state.xPos.ToString());
             m.WriteMemory("base+03742E10,24", "float", state.yPos.ToString());
             m.WriteMemory("base+03742E10,28", "float", state.zPos.ToString());
 
-            //m.WriteMemory("base+03B2CAB0", "float", state.xPos.ToString());
-            //m.WriteMemory("base+03B2CAB4", "float", state.xPos.ToString());
-            //m.WriteMemory("base+03B2CAB8", "float", state.xPos.ToString());
+            m.WriteMemory("base+0372CAB0", "float", state.xPos.ToString());
+            m.WriteMemory("base+0372CAB4", "float", state.xPos.ToString());
+            m.WriteMemory("base+0372CAB8", "float", state.xPos.ToString());
 
-            m.WriteMemory("base+03742E10,14", "2byte", state.xRot.ToString());
-            m.WriteMemory("base+03742E10,18", "2byte", state.yRot.ToString());
-            m.WriteMemory("base+03742E10,1C", "2byte", state.zRot.ToString());
+            // Write Rotation into memory
+            m.WriteMemory("base+03742E10,14", "2bytes", state.xRot.ToString());
+            m.WriteMemory("base+03742E10,18", "2bytes", state.yRot.ToString());
+            m.WriteMemory("base+03742E10,1C", "2bytes", state.zRot.ToString());
 
-            //m.re
+            // Write Speed into memory
+            m.WriteMemory("base+373CDF0,38", "float", state.hSpeed.ToString());
+            m.WriteMemory("base+373CDF0,3C", "float", state.vSpeed.ToString());
 
+            // Write Lives and rings into memory
             m.WriteMemory("base+0370EF34", "int", state.lives.ToString());
             m.WriteMemory("base+0370F0E4", "int", state.rings.ToString());
 
+            // Write time into memory
             m.WriteMemory("base+0370EF35", "int", state.tFrames.ToString());
             m.WriteMemory("base+0370F128", "int", state.tSeconds.ToString());
             m.WriteMemory("base+0370EF48", "int", state.tMins.ToString());
@@ -151,7 +157,7 @@ namespace SADXOpenStates
 
     class SaveState
     {
-        public float xPos, yPos, zPos, xRot, yRot, zRot;
+        public float xPos, yPos, zPos, xRot, yRot, zRot, hSpeed, vSpeed;
         public int lives, rings, tFrames, tSeconds, tMins;
         
         public SaveState(Mem memwatch)
@@ -160,9 +166,12 @@ namespace SADXOpenStates
             this.xPos = memwatch.ReadFloat("base+03742E10,20");
             this.yPos = memwatch.ReadFloat("base+03742E10,24");
             this.zPos = memwatch.ReadFloat("base+03742E10,28");
-            this.xRot = memwatch.ReadFloat("base+03742E10,14");
-            this.yRot = memwatch.ReadFloat("base+03742E10,18");
-            this.zRot = memwatch.ReadFloat("base+03742E10,1C");
+            this.xRot = memwatch.Read2Byte("base+03742E10,14");
+            this.yRot = memwatch.Read2Byte("base+03742E10,18");
+            this.zRot = memwatch.Read2Byte("base+03742E10,1C");
+
+            this.hSpeed = memwatch.ReadFloat("base+373CDF0,38");
+            this.vSpeed = memwatch.ReadFloat("base+373CDF0,3C");
 
             this.lives = memwatch.ReadByte("base+0370EF34");
             this.rings = memwatch.Read2Byte("base+0370F0E4");
@@ -170,6 +179,8 @@ namespace SADXOpenStates
             this.tFrames = memwatch.ReadByte("base+0370EF35");
             this.tSeconds = memwatch.ReadByte("base+0370F128");
             this.tMins = memwatch.ReadByte("base+0370EF48");
+
+            //Console.WriteLine("Xrot: {0}, Yrot: {1}, Zrot: {2}",this.xRot,this.yRot,this.zRot);
 
         }
     }
