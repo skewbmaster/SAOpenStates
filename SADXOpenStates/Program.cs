@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Threading;
 using SharpDX.XInput;
 using Memory;
+using Newtonsoft.Json;
 
 // Used for later
 using System.Configuration;
@@ -15,6 +17,9 @@ namespace SADXOpenStates
 
         public static Mem m = new Mem(); // Initialise memory dll
 
+        public static Thread checkGame = new Thread(checkForProcess);
+        public static bool gameHooked = false;
+
         //public static int[] memAddresses = { 0x03742E10, 0x0370EF35, 0x0370F128, 0x0370EF48, 0x0370EF34, 0x0370F0E4 }; // Character 1 offset, Time:(Frames, Seconds, Minutes), Lives, Rings
 
         public static SaveState[] saveStates = new SaveState[10]; // Create 10 save states
@@ -22,20 +27,22 @@ namespace SADXOpenStates
 
         static void Main(string[] args)
         {
-            Init();
-            Run();
-        }
-
-        public static void Init()
-        {
-            CONTROLLER = new XController(UserIndex.One); // Define controller as the first one plugged in
-
+            string stttrtrrt = System.IO.File.ReadAllText("file.txt");
+            SaveStateLoad[] loadedstuff = JsonConvert.DeserializeObject<SaveStateLoad[]>(stttrtrrt);
+            for (int i = 0; i < 10; i++)
+            {
+                saveStates[i] = new SaveState(loadedstuff[i].xPos, loadedstuff[i].yPos, loadedstuff[i].zPos, loadedstuff[i].xRot, loadedstuff[i].yRot, loadedstuff[i].zRot, loadedstuff[i].hSpeed, loadedstuff[i].vSpeed, loadedstuff[i].lives, loadedstuff[i].rings, loadedstuff[i].tFrames, loadedstuff[i].tSeconds, loadedstuff[i].tMins, loadedstuff[i].camX, loadedstuff[i].camY, loadedstuff[i].camZ, loadedstuff[i].camXRot, loadedstuff[i].camYRot, loadedstuff[i].camZRot);
+            }
+            ConnectController();
             Hook();
+            Run();
         }
 
         public static bool Hook()
         {
             Console.WriteLine("Searching for game...");
+
+            //Console.WriteLine(m.GetProcIdFromName("sonic"));
 
             while (true)
             {
@@ -45,9 +52,43 @@ namespace SADXOpenStates
                     continue;
                 }
 
+                gameHooked = true;
                 Console.WriteLine("Game found!");
+                checkGame.Start();
                 return true;
             }
+        }
+
+        public static void checkForProcess()
+        {
+            while (true)
+            {
+                if (m.GetProcIdFromName("sonic") == 0)
+                {
+                    m.CloseProcess();
+                    gameHooked = false;
+                    Console.WriteLine("Game closed");
+                    break;
+                }
+
+                Thread.Sleep(1000);
+            }
+        }
+
+        public static void ConnectController()
+        {
+            Console.WriteLine("Searching for controller...");
+
+            while (true)
+            {
+                CONTROLLER = new XController(UserIndex.One); // Define controller as the first one plugged in
+
+                if (CONTROLLER.GetConnected()) break;
+
+                System.Threading.Thread.Sleep(100);
+            }
+
+            Console.WriteLine("Controller found!");
         }
 
         public static void Run()
@@ -55,58 +96,87 @@ namespace SADXOpenStates
             GamepadButtonFlags buttonsPressed;
 
             bool hasSaved = false, hasLoaded = false, hasSwitched = false;
+            bool left, right, up, down;
 
-            while (true) {
-
-                buttonsPressed = CONTROLLER.GetState().Gamepad.Buttons;
-
-
-                if (buttonsPressed.HasFlag(GamepadButtonFlags.DPadLeft) && !hasSaved)
+            while (true)
+            {
+                while (gameHooked)
                 {
-                    saveStates[curSaveState] = new SaveState(m);
 
-                    Console.WriteLine("Saved to {0}", curSaveState);
+                    if (CONTROLLER == null)
+                    {
+                        ConnectController();
+                    }
+                    else if (!CONTROLLER.GetConnected())
+                    {
+                        CONTROLLER = null;
+                        Console.WriteLine("Controller disconnected");
+                        continue;
+                    }
 
-                    hasSaved = true;
+
+                    buttonsPressed = CONTROLLER.GetState().Gamepad.Buttons;
+
+                    left = buttonsPressed.HasFlag(GamepadButtonFlags.DPadLeft);
+                    right = buttonsPressed.HasFlag(GamepadButtonFlags.DPadRight);
+                    up = buttonsPressed.HasFlag(GamepadButtonFlags.DPadUp);
+                    down = buttonsPressed.HasFlag(GamepadButtonFlags.DPadDown);
+
+                    if (left && !hasSaved)
+                    {
+                        saveStates[curSaveState] = new SaveState(m);
+                        
+
+                        Console.WriteLine("Saved to {0}", curSaveState);
+                        string lol = JsonConvert.SerializeObject(saveStates);
+                        
+                        System.IO.File.WriteAllText("file.txt", lol);
+
+                        hasSaved = true;
+                    }
+                    else if (!left && hasSaved)
+                    {
+                        hasSaved = false;
+                    }
+
+
+                    if (right && !hasLoaded && saveStates[curSaveState] != null)
+                    {
+                        LoadState(saveStates[curSaveState]);
+
+                        Console.WriteLine("Loaded {0}", curSaveState);
+
+                        hasLoaded = true;
+                    }
+                    else if (!right && hasLoaded)
+                    {
+                        hasLoaded = false;
+                    }
+
+
+                    if ((up || down) && !hasSwitched)
+                    {
+                        curSaveState += Convert.ToInt32(up);
+                        curSaveState -= Convert.ToInt32(down);
+
+                        if (curSaveState == -1) curSaveState = 9;
+                        else if (curSaveState == 10) curSaveState = 0;
+
+                        Console.WriteLine("Switched to save slot {0}", curSaveState);
+
+                        hasSwitched = true;
+                    }
+                    else if (!(up || down) && hasSwitched)
+                    {
+                        hasSwitched = false;
+                    }
+
+
+                    System.Threading.Thread.Sleep(10);
                 }
-                else if (!buttonsPressed.HasFlag(GamepadButtonFlags.DPadLeft) && hasSaved)
-                {
-                    hasSaved = false;
-                }
 
-
-                if (buttonsPressed.HasFlag(GamepadButtonFlags.DPadRight) && !hasLoaded && saveStates[curSaveState] != null)
-                {
-                    LoadState(saveStates[curSaveState]);
-
-                    Console.WriteLine("Loaded {0}", curSaveState);
-
-                    hasLoaded = true;
-                }
-                else if (!buttonsPressed.HasFlag(GamepadButtonFlags.DPadRight) && hasLoaded)
-                { 
-                    hasLoaded = false; 
-                }
-
-
-                if ((buttonsPressed.HasFlag(GamepadButtonFlags.DPadUp) || buttonsPressed.HasFlag(GamepadButtonFlags.DPadDown)) && !hasSwitched)
-                {
-                    curSaveState += Convert.ToInt32(buttonsPressed.HasFlag(GamepadButtonFlags.DPadUp));
-                    curSaveState -= Convert.ToInt32(buttonsPressed.HasFlag(GamepadButtonFlags.DPadDown));
-
-                    if (curSaveState == -1) curSaveState = 9;
-                    else if (curSaveState == 10) curSaveState = 0;
-
-                    Console.WriteLine("Switched to save slot {0}", curSaveState);
-
-                    hasSwitched = true;
-                }
-                else if (!(buttonsPressed.HasFlag(GamepadButtonFlags.DPadUp) || buttonsPressed.HasFlag(GamepadButtonFlags.DPadDown)) && hasSwitched)
-                {
-                    hasSwitched = false;
-                }
-
-                System.Threading.Thread.Sleep(10);
+                checkGame = new Thread(checkForProcess);
+                Hook();
             }
         }
 
@@ -117,9 +187,9 @@ namespace SADXOpenStates
             m.WriteMemory("base+03742E10,24", "float", state.yPos.ToString());
             m.WriteMemory("base+03742E10,28", "float", state.zPos.ToString());
 
-            m.WriteMemory("base+0372CAB0", "float", state.xPos.ToString());
-            m.WriteMemory("base+0372CAB4", "float", state.xPos.ToString());
-            m.WriteMemory("base+0372CAB8", "float", state.xPos.ToString());
+            //m.WriteMemory("base+0372CAB0", "float", state.xPos.ToString());
+            //m.WriteMemory("base+0372CAB4", "float", state.xPos.ToString());
+            //m.WriteMemory("base+0372CAB8", "float", state.xPos.ToString());
 
             // Write Rotation into memory
             m.WriteMemory("base+03742E10,14", "2bytes", state.xRot.ToString());
@@ -138,6 +208,24 @@ namespace SADXOpenStates
             m.WriteMemory("base+0370EF35", "int", state.tFrames.ToString());
             m.WriteMemory("base+0370F128", "int", state.tSeconds.ToString());
             m.WriteMemory("base+0370EF48", "int", state.tMins.ToString());
+
+
+
+            // Write camera info into memory
+            if (m.ReadByte("base+372CBA8") != 7)
+            {
+                m.WriteMemory("base+372CBA8", "byte", "4");
+
+                m.WriteMemory("base+0372CBB0,20", "float", state.camX.ToString());
+                m.WriteMemory("base+0372CBB0,24", "float", state.camY.ToString());
+                m.WriteMemory("base+0372CBB0,28", "float", state.camZ.ToString());
+
+                m.WriteMemory("base+0372CBB0,14", "2bytes", state.camXRot.ToString());
+                m.WriteMemory("base+0372CBB0,18", "2bytes", state.camYRot.ToString());
+                m.WriteMemory("base+0372CBB0,1C", "2bytes", state.camZRot.ToString());
+
+                //m.WriteMemory("base+372CAE1", "byte", "0");
+            }
         }
     }
 
@@ -154,14 +242,46 @@ namespace SADXOpenStates
         {
             return controller.GetState();
         }
+
+        public bool GetConnected()
+        {
+            return controller.IsConnected;
+        }
     }
+    public class SaveStateLoad
+    {
+        public float xPos { get; set; }
+        public float yPos { get; set; }
 
+        public float zPos { get; set; }
+        public float xRot { get; set; }
+        public float yRot { get; set; }
+        public float zRot { get; set; }
+        public float hSpeed { get; set; }
+        public float vSpeed { get; set; }
 
-    class SaveState
+        public int lives { get; set; }
+        public int rings { get; set; }
+        public int tFrames { get; set; }
+        public int tSeconds { get; set; }
+        public int tMins { get; set; }
+
+        public float camX { get; set; }
+        public float camY { get; set; }
+        public float camZ { get; set; }
+
+        public int camXRot { get; set; }
+        public int camYRot { get; set; }
+        public int camZRot { get; set; }
+    }
+    public class SaveState
     {
         public float xPos, yPos, zPos, xRot, yRot, zRot, hSpeed, vSpeed;
         public int lives, rings, tFrames, tSeconds, tMins;
-        
+
+        public float camX, camY, camZ;
+        public int camXRot, camYRot, camZRot;
+
         public SaveState(Mem memwatch)
         {
 
@@ -182,9 +302,38 @@ namespace SADXOpenStates
             this.tSeconds = memwatch.ReadByte("base+0370F128");
             this.tMins = memwatch.ReadByte("base+0370EF48");
 
-            //Console.WriteLine("Xrot: {0}, Yrot: {1}, Zrot: {2}",this.xRot,this.yRot,this.zRot);
+            this.camX = memwatch.ReadFloat("base+0372CBB0,20");
+            this.camY = memwatch.ReadFloat("base+0372CBB0,24");
+            this.camZ = memwatch.ReadFloat("base+0372CBB0,28");
+            this.camXRot = memwatch.Read2Byte("base+0372CBB0,14");
+            this.camYRot = memwatch.Read2Byte("base+0372CBB0,18");
+            this.camZRot = memwatch.Read2Byte("base+0372CBB0,1C");
+        }
+        public SaveState(float xPos, float yPos, float zPos, float xRot, float yRot, float zRot, float hSpeed, float vSpeed, int lives, int rings, int tFrames, int tSeconds, int tMins, float camX, float camY, float camZ, int camXRot, int camYRot, int camZRot)
+        {
+            this.xPos = xPos;
+            this.yPos = yPos;
+            this.zPos = zPos;
+            this.xRot = xRot;
+            this.yRot = yRot;
+            this.zRot = zRot;
 
+            this.hSpeed = hSpeed;
+            this.vSpeed = vSpeed;
+
+            this.lives = lives;
+            this.rings = rings;
+
+            this.tFrames = tFrames;
+            this.tSeconds = tSeconds;
+            this.tMins = tMins;
+
+            this.camX = camX;
+            this.camY = camY;
+            this.camZ = camZ;
+            this.camXRot = camXRot;
+            this.camYRot = camYRot;
+            this.camZRot = camZRot;
         }
     }
-
 }
