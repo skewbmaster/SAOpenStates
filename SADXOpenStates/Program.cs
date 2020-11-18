@@ -28,10 +28,11 @@ namespace SADXOpenStates
         static void Main(string[] args)
         {
             string stttrtrrt = System.IO.File.ReadAllText("file.txt");
-            SaveStateLoad[] loadedstuff = JsonConvert.DeserializeObject<SaveStateLoad[]>(stttrtrrt);
+            SaveState[] loadedstuff = JsonConvert.DeserializeObject<SaveState[]>(stttrtrrt);
             for (int i = 0; i < 10; i++)
             {
                 saveStates[i] = new SaveState(loadedstuff[i].xPos, loadedstuff[i].yPos, loadedstuff[i].zPos, loadedstuff[i].xRot, loadedstuff[i].yRot, loadedstuff[i].zRot, loadedstuff[i].hSpeed, loadedstuff[i].vSpeed, loadedstuff[i].lives, loadedstuff[i].rings, loadedstuff[i].tFrames, loadedstuff[i].tSeconds, loadedstuff[i].tMins, loadedstuff[i].camX, loadedstuff[i].camY, loadedstuff[i].camZ, loadedstuff[i].camXRot, loadedstuff[i].camYRot, loadedstuff[i].camZRot);
+                //saveStates[i] = new SaveState();
             }
             ConnectController();
             Hook();
@@ -248,32 +249,7 @@ namespace SADXOpenStates
             return controller.IsConnected;
         }
     }
-    public class SaveStateLoad
-    {
-        public float xPos { get; set; }
-        public float yPos { get; set; }
 
-        public float zPos { get; set; }
-        public float xRot { get; set; }
-        public float yRot { get; set; }
-        public float zRot { get; set; }
-        public float hSpeed { get; set; }
-        public float vSpeed { get; set; }
-
-        public int lives { get; set; }
-        public int rings { get; set; }
-        public int tFrames { get; set; }
-        public int tSeconds { get; set; }
-        public int tMins { get; set; }
-
-        public float camX { get; set; }
-        public float camY { get; set; }
-        public float camZ { get; set; }
-
-        public int camXRot { get; set; }
-        public int camYRot { get; set; }
-        public int camZRot { get; set; }
-    }
     public class SaveState
     {
         public float xPos, yPos, zPos, xRot, yRot, zRot, hSpeed, vSpeed;
@@ -309,6 +285,7 @@ namespace SADXOpenStates
             this.camYRot = memwatch.Read2Byte("base+0372CBB0,18");
             this.camZRot = memwatch.Read2Byte("base+0372CBB0,1C");
         }
+        [JsonConstructor]
         public SaveState(float xPos, float yPos, float zPos, float xRot, float yRot, float zRot, float hSpeed, float vSpeed, int lives, int rings, int tFrames, int tSeconds, int tMins, float camX, float camY, float camZ, int camXRot, int camYRot, int camZRot)
         {
             this.xPos = xPos;
