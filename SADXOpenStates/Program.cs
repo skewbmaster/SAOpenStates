@@ -3,6 +3,7 @@ using System.Threading;
 using SharpDX.XInput;
 using Memory;
 using Newtonsoft.Json;
+using System.Linq;
 
 // Used for later
 using System.Configuration;
@@ -32,16 +33,7 @@ namespace SADXOpenStates
                 string json = System.IO.File.ReadAllText("file.txt");
                 SaveStateSerializer SavesObject = JsonConvert.DeserializeObject<SaveStateSerializer>(json);
 
-                Console.WriteLine(SavesObject.Version);
-
-                SaveState[] statesFromFile = SavesObject.SaveStates;
-                for (int i = 0; i < 10; i++)
-                {
-                    if(statesFromFile[i] != null)
-                    {
-                        statesFromFile[i] = new SaveState(statesFromFile[i].xPos, statesFromFile[i].yPos, statesFromFile[i].zPos, statesFromFile[i].xRot, statesFromFile[i].yRot, statesFromFile[i].zRot, statesFromFile[i].hSpeed, statesFromFile[i].vSpeed, statesFromFile[i].hover, statesFromFile[i].lives, statesFromFile[i].rings, statesFromFile[i].tFrames, statesFromFile[i].tSeconds, statesFromFile[i].tMins, statesFromFile[i].camX, statesFromFile[i].camY, statesFromFile[i].camZ, statesFromFile[i].camXRot, statesFromFile[i].camYRot, statesFromFile[i].camZRot);
-                    }
-                }
+                saveStates = SavesObject.SaveStates;
             }
 
             ConnectController();
@@ -104,10 +96,12 @@ namespace SADXOpenStates
 
         public static void Run()
         {
-            GamepadButtonFlags buttonsPressed;
+            int buttonsPressed;
 
             bool hasSaved = false, hasLoaded = false, hasSwitched = false;
-            bool left, right, up, down;
+            bool DLeft, DRight, DUp, DDown, LB;
+
+            int invertCycle = UserSettings.Default.invertCycle ? -1 : 1;
 
             while (true)
             {
@@ -126,72 +120,79 @@ namespace SADXOpenStates
                     }
 
 
-                    buttonsPressed = CONTROLLER.GetState().Gamepad.Buttons;
+                    buttonsPressed = (int)CONTROLLER.GetState().Gamepad.Buttons;
 
-                    left = buttonsPressed.HasFlag(GamepadButtonFlags.DPadLeft);
-                    right = buttonsPressed.HasFlag(GamepadButtonFlags.DPadRight);
-                    up = buttonsPressed.HasFlag(GamepadButtonFlags.DPadUp);
-                    down = buttonsPressed.HasFlag(GamepadButtonFlags.DPadDown);
+                    DUp = (buttonsPressed & 1) != 0 ? true : false;
+                    DDown = (buttonsPressed & 2) != 0 ? true : false;
+                    DLeft = (buttonsPressed & 4) != 0 ? true : false;
+                    DRight = (buttonsPressed & 8) != 0 ? true : false;
+                    LB = (buttonsPressed & 256) != 0 ? true : false;
 
-                    if (left && !hasSaved)
+                    if(LB || !UserSettings.Default.extraInput)
                     {
-                        saveStates[curSaveState] = new SaveState(m);
-                        
+                        if (DLeft && !hasSaved)
+                        {
+                            saveStates[curSaveState] = new SaveState(m);
 
-                        Console.WriteLine("Saved to {0}", curSaveState);
-                        SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
-                        string json = JsonConvert.SerializeObject(SaveObjectToSerialize);
-                        
-                        System.IO.File.WriteAllText("file.txt", json);
 
-                        hasSaved = true;
+                            Console.WriteLine("Saved to {0}", curSaveState);
+                            SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
+                            string json = JsonConvert.SerializeObject(SaveObjectToSerialize);
+
+                            System.IO.File.WriteAllText("file.txt", json);
+
+                            hasSaved = true;
+                        }
+                        else if (!DLeft && hasSaved)
+                        {
+                            hasSaved = false;
+                        }
+
+
+                        if (DRight && !hasLoaded)
+                        {
+                            if (saveStates[curSaveState] != null)
+                            {
+                                LoadState(saveStates[curSaveState]);
+
+                                Console.WriteLine("Loaded {0}", curSaveState);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Cannot find save state {0}", curSaveState);
+                            }
+                            hasLoaded = true;
+                        }
+                        else if (!DRight && hasLoaded)
+                        {
+                            hasLoaded = false;
+                        }
+
+
+
+                        if ((DUp || DDown) && !hasSwitched)
+                        {
+                            //Console.WriteLine(Convert.ToInt32(UserSettings.Default.invertCycle));
+
+                            curSaveState += Convert.ToInt32(DUp) * invertCycle;
+                            curSaveState -= Convert.ToInt32(DDown) * invertCycle;
+
+                            if (curSaveState == -1) curSaveState = 9;
+                            else if (curSaveState == 10) curSaveState = 0;
+
+                            Console.WriteLine("Switched to save slot {0}", curSaveState);
+
+                            hasSwitched = true;
+                        }
+                        else if (!(DUp || DDown) && hasSwitched)
+                        {
+                            hasSwitched = false;
+                        }
+
+                        System.Threading.Thread.Sleep(10);
                     }
-                    else if (!left && hasSaved)
-                    {
-                        hasSaved = false;
-                    }
 
-
-                    if (right && !hasLoaded && saveStates[curSaveState] != null)
-                    {
-                        LoadState(saveStates[curSaveState]);
-
-                        Console.WriteLine("Loaded {0}", curSaveState);
-
-                        hasLoaded = true;
-                    }
-                    else if (right && saveStates[curSaveState] == null && !hasLoaded)
-                    {
-                        hasLoaded = true;
-                        Console.WriteLine("Cannot find save state {0}", curSaveState);
-                    }
-                    else if (!right && hasLoaded)
-                    {
-                        hasLoaded = false;
-                    }
                     
-
-
-                    if ((up || down) && !hasSwitched)
-                    {
-                        //Console.WriteLine(Convert.ToInt32(UserSettings.Default.invertCycle));
-                        curSaveState += Convert.ToInt32(up);
-                        curSaveState -= Convert.ToInt32(down);
-
-                        if (curSaveState == -1) curSaveState = 9;
-                        else if (curSaveState == 10) curSaveState = 0;
-
-                        Console.WriteLine("Switched to save slot {0}", curSaveState);
-
-                        hasSwitched = true;
-                    }
-                    else if (!(up || down) && hasSwitched)
-                    {
-                        hasSwitched = false;
-                    }
-
-
-                    System.Threading.Thread.Sleep(10);
                 }
 
                 checkGame = new Thread(checkForProcess);
@@ -234,8 +235,6 @@ namespace SADXOpenStates
             // Write camera info into memory
             if (m.ReadByte("base+372CBA8") != 7)
             {
-                m.WriteMemory("base+372CBA8", "byte", "4");
-
                 m.WriteMemory("base+0372CBB0,20", "float", state.camX.ToString());
                 m.WriteMemory("base+0372CBB0,24", "float", state.camY.ToString());
                 m.WriteMemory("base+0372CBB0,28", "float", state.camZ.ToString());

@@ -2,8 +2,11 @@
 <SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="SADXOpenStates.Properties" GeneratedClassName="Settings">
   <Profiles />
   <Settings>
-    <Setting Name="Pog" Type="System.String" Scope="User">
-      <Value Profile="(Default)" />
+    <Setting Name="invertCycle" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
+    <Setting Name="extraInput" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
     </Setting>
   </Settings>
 </SettingsFile>
