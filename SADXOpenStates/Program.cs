@@ -29,23 +29,20 @@ namespace SADXOpenStates
         {
             if(System.IO.File.Exists("file.txt"))
             {
-                string stttrtrrt = System.IO.File.ReadAllText("file.txt");
-                SaveStateVersion versionstuff = JsonConvert.DeserializeObject<SaveStateVersion>(stttrtrrt);
+                string json = System.IO.File.ReadAllText("file.txt");
+                SaveStateSerializer SavesObject = JsonConvert.DeserializeObject<SaveStateSerializer>(json);
 
-                Console.WriteLine(versionstuff.Version);
+                Console.WriteLine(SavesObject.Version);
 
-                SaveState[] loadedstuff = versionstuff.idk;
+                SaveState[] statesFromFile = SavesObject.SaveStates;
                 for (int i = 0; i < 10; i++)
                 {
-                    if(loadedstuff[i] != null)
+                    if(statesFromFile[i] != null)
                     {
-                        saveStates[i] = new SaveState(loadedstuff[i].xPos, loadedstuff[i].yPos, loadedstuff[i].zPos, loadedstuff[i].xRot, loadedstuff[i].yRot, loadedstuff[i].zRot, loadedstuff[i].hSpeed, loadedstuff[i].vSpeed, loadedstuff[i].hover, loadedstuff[i].lives, loadedstuff[i].rings, loadedstuff[i].tFrames, loadedstuff[i].tSeconds, loadedstuff[i].tMins, loadedstuff[i].camX, loadedstuff[i].camY, loadedstuff[i].camZ, loadedstuff[i].camXRot, loadedstuff[i].camYRot, loadedstuff[i].camZRot);
+                        statesFromFile[i] = new SaveState(statesFromFile[i].xPos, statesFromFile[i].yPos, statesFromFile[i].zPos, statesFromFile[i].xRot, statesFromFile[i].yRot, statesFromFile[i].zRot, statesFromFile[i].hSpeed, statesFromFile[i].vSpeed, statesFromFile[i].hover, statesFromFile[i].lives, statesFromFile[i].rings, statesFromFile[i].tFrames, statesFromFile[i].tSeconds, statesFromFile[i].tMins, statesFromFile[i].camX, statesFromFile[i].camY, statesFromFile[i].camZ, statesFromFile[i].camXRot, statesFromFile[i].camYRot, statesFromFile[i].camZRot);
                     }
                 }
             }
-
-
-            
 
             ConnectController();
             Hook();
@@ -142,10 +139,10 @@ namespace SADXOpenStates
                         
 
                         Console.WriteLine("Saved to {0}", curSaveState);
-                        SaveStateVersion lol = new SaveStateVersion(saveStates);
-                        string lul = JsonConvert.SerializeObject(lol);
+                        SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
+                        string json = JsonConvert.SerializeObject(SaveObjectToSerialize);
                         
-                        System.IO.File.WriteAllText("file.txt", lul);
+                        System.IO.File.WriteAllText("file.txt", json);
 
                         hasSaved = true;
                     }
@@ -272,15 +269,15 @@ namespace SADXOpenStates
         }
     }
 
-    public class SaveStateVersion
+    public class SaveStateSerializer
     {
         public string Version { get; set; }
-        public SaveState[] idk { get; set; }
+        public SaveState[] SaveStates { get; set; }
         [JsonConstructor]
-        public SaveStateVersion(SaveState[] saves)
+        public SaveStateSerializer(SaveState[] saves)
         {
             Version = "1";
-            idk = saves;
+            SaveStates = saves;
         }
     }
 
