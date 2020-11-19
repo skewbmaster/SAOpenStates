@@ -31,9 +31,11 @@ namespace SADXOpenStates
             SaveState[] loadedstuff = JsonConvert.DeserializeObject<SaveState[]>(stttrtrrt);
             for (int i = 0; i < 10; i++)
             {
-                saveStates[i] = new SaveState(loadedstuff[i].xPos, loadedstuff[i].yPos, loadedstuff[i].zPos, loadedstuff[i].xRot, loadedstuff[i].yRot, loadedstuff[i].zRot, loadedstuff[i].hSpeed, loadedstuff[i].vSpeed, loadedstuff[i].lives, loadedstuff[i].rings, loadedstuff[i].tFrames, loadedstuff[i].tSeconds, loadedstuff[i].tMins, loadedstuff[i].camX, loadedstuff[i].camY, loadedstuff[i].camZ, loadedstuff[i].camXRot, loadedstuff[i].camYRot, loadedstuff[i].camZRot);
-                //saveStates[i] = new SaveState();
+                saveStates[i] = new SaveState(loadedstuff[i].xPos, loadedstuff[i].yPos, loadedstuff[i].zPos, loadedstuff[i].xRot, loadedstuff[i].yRot, loadedstuff[i].zRot, loadedstuff[i].hSpeed, loadedstuff[i].vSpeed, loadedstuff[i].hover, loadedstuff[i].lives, loadedstuff[i].rings, loadedstuff[i].tFrames, loadedstuff[i].tSeconds, loadedstuff[i].tMins, loadedstuff[i].camX, loadedstuff[i].camY, loadedstuff[i].camZ, loadedstuff[i].camXRot, loadedstuff[i].camYRot, loadedstuff[i].camZRot);
             }
+
+            
+
             ConnectController();
             Hook();
             Run();
@@ -157,6 +159,7 @@ namespace SADXOpenStates
 
                     if ((up || down) && !hasSwitched)
                     {
+                        //Console.WriteLine(Convert.ToInt32(UserSettings.Default.invertCycle));
                         curSaveState += Convert.ToInt32(up);
                         curSaveState -= Convert.ToInt32(down);
 
@@ -200,6 +203,7 @@ namespace SADXOpenStates
             // Write Speed into memory
             m.WriteMemory("base+373CDF0,38", "float", state.hSpeed.ToString());
             m.WriteMemory("base+373CDF0,3C", "float", state.vSpeed.ToString());
+            m.WriteMemory("base+373CDF0,8", "2bytes", state.hover.ToString());
 
             // Write Lives and rings into memory
             m.WriteMemory("base+0370EF34", "int", state.lives.ToString());
@@ -253,7 +257,7 @@ namespace SADXOpenStates
     public class SaveState
     {
         public float xPos, yPos, zPos, xRot, yRot, zRot, hSpeed, vSpeed;
-        public int lives, rings, tFrames, tSeconds, tMins;
+        public int lives, rings, hover, tFrames, tSeconds, tMins;
 
         public float camX, camY, camZ;
         public int camXRot, camYRot, camZRot;
@@ -270,6 +274,7 @@ namespace SADXOpenStates
 
             this.hSpeed = memwatch.ReadFloat("base+373CDF0,38");
             this.vSpeed = memwatch.ReadFloat("base+373CDF0,3C");
+            this.hover = memwatch.Read2Byte("base+373CDF0,8");
 
             this.lives = memwatch.ReadByte("base+0370EF34");
             this.rings = memwatch.Read2Byte("base+0370F0E4");
@@ -286,7 +291,7 @@ namespace SADXOpenStates
             this.camZRot = memwatch.Read2Byte("base+0372CBB0,1C");
         }
         [JsonConstructor]
-        public SaveState(float xPos, float yPos, float zPos, float xRot, float yRot, float zRot, float hSpeed, float vSpeed, int lives, int rings, int tFrames, int tSeconds, int tMins, float camX, float camY, float camZ, int camXRot, int camYRot, int camZRot)
+        public SaveState(float xPos, float yPos, float zPos, float xRot, float yRot, float zRot, float hSpeed, float vSpeed, int hover, int lives, int rings, int tFrames, int tSeconds, int tMins, float camX, float camY, float camZ, int camXRot, int camYRot, int camZRot)
         {
             this.xPos = xPos;
             this.yPos = yPos;
@@ -297,6 +302,7 @@ namespace SADXOpenStates
 
             this.hSpeed = hSpeed;
             this.vSpeed = vSpeed;
+            this.hover = hover;
 
             this.lives = lives;
             this.rings = rings;
