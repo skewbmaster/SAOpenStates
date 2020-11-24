@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Threading;
 using SharpDX.XInput;
+using SharpDX.DirectInput;
 using Memory;
 using Newtonsoft.Json;
 using System.Linq;
+using System.IO;
 
 // Used for later
 using System.Configuration;
@@ -15,6 +17,7 @@ namespace SADXOpenStates
     class Program
     {
         public static XController CONTROLLER; // Initialise controller for inputs
+        public static DController DCONTROLLER;
 
         public static Mem m = new Mem(); // Initialise memory dll
 
@@ -26,17 +29,31 @@ namespace SADXOpenStates
         public static SaveState[] saveStates = new SaveState[10]; // Create 10 save states
         public static int curSaveState = 0;
 
+        public static bool isDInput = false;
+
         static void Main(string[] args)
         {
-            if(System.IO.File.Exists("file.txt"))
+            if (File.Exists("file.txt"))
             {
-                string json = System.IO.File.ReadAllText("file.txt");
+                string json = File.ReadAllText("file.txt");
                 SaveStateSerializer SavesObject = JsonConvert.DeserializeObject<SaveStateSerializer>(json);
 
                 saveStates = SavesObject.SaveStates;
             }
 
-            ConnectController();
+            if (File.Exists("DInput.txt"))
+            {
+                string json = File.ReadAllText("DInput.txt");
+                DCONTROLLER = JsonConvert.DeserializeObject<DController>(json);
+                isDInput = true;
+
+                DCONTROLLER.InitializeController();
+            }
+            else
+            {
+                ConnectController();
+            }
+
             Hook();
             Run();
         }
@@ -80,7 +97,7 @@ namespace SADXOpenStates
 
         public static void ConnectController()
         {
-            Console.WriteLine("Searching for controller...");
+            Console.WriteLine("Searching for XInput controller...");
 
             while (true)
             {
@@ -107,26 +124,42 @@ namespace SADXOpenStates
             {
                 while (gameHooked)
                 {
-
-                    if (CONTROLLER == null)
+                    if (!isDInput)
                     {
-                        ConnectController();
-                    }
-                    else if (!CONTROLLER.GetConnected())
+                        if (CONTROLLER == null)
+                        {
+                            ConnectController();
+                        }
+                        else if (!CONTROLLER.GetConnected())
+                        {
+                            CONTROLLER = null;
+                            Console.WriteLine("Controller disconnected");
+                            continue;
+                        }
+
+                        buttonsPressed = (int)CONTROLLER.GetState().Gamepad.Buttons;
+
+                        DUp = (buttonsPressed & 1) != 0 ? true : false;
+                        DDown = (buttonsPressed & 2) != 0 ? true : false;
+                        DLeft = (buttonsPressed & 4) != 0 ? true : false;
+                        DRight = (buttonsPressed & 8) != 0 ? true : false;
+                        LB = (buttonsPressed & 256) != 0 ? true : false;
+                    } 
+                    else
                     {
-                        CONTROLLER = null;
-                        Console.WriteLine("Controller disconnected");
-                        continue;
+                        bool[] Dinputs = DCONTROLLER.GetState();
+                        if(!Dinputs[5])
+                        {
+                            DCONTROLLER.InitializeController();
+                            continue;
+                        }
+
+                        DUp = Dinputs[0];
+                        DLeft = Dinputs[1];
+                        DRight = Dinputs[2];
+                        DDown = Dinputs[3];
+                        LB = Dinputs[4];
                     }
-
-
-                    buttonsPressed = (int)CONTROLLER.GetState().Gamepad.Buttons;
-
-                    DUp = (buttonsPressed & 1) != 0 ? true : false;
-                    DDown = (buttonsPressed & 2) != 0 ? true : false;
-                    DLeft = (buttonsPressed & 4) != 0 ? true : false;
-                    DRight = (buttonsPressed & 8) != 0 ? true : false;
-                    LB = (buttonsPressed & 256) != 0 ? true : false;
 
                     if(LB || !UserSettings.Default.extraInput)
                     {
@@ -191,8 +224,6 @@ namespace SADXOpenStates
 
                         System.Threading.Thread.Sleep(10);
                     }
-
-                    
                 }
 
                 checkGame = new Thread(checkForProcess);
@@ -265,6 +296,93 @@ namespace SADXOpenStates
         public bool GetConnected()
         {
             return controller.IsConnected;
+        }
+    }
+
+    class DController
+    {
+        public int?[,] Buttons;
+        public int?[,] DPad;
+
+        private static DirectInput directInput = new DirectInput();
+        private static Joystick joystick;
+
+        public bool controllerIsConnected = false;
+
+        [JsonConstructor]
+        public DController(int?[,] dpadArray, int?[,] buttonsArray)
+        {
+            DPad = dpadArray;
+            Buttons = buttonsArray;
+        }
+
+        public void InitializeController()
+        {
+            Console.WriteLine("Searching for DInput controller...");
+            // Find a Joystick Guid
+            var joystickGuid = Guid.Empty;
+
+            // If Joystick not found, throws an error
+            while (joystickGuid == Guid.Empty)
+            {
+                foreach (var deviceInstance in directInput.GetDevices(SharpDX.DirectInput.DeviceType.Gamepad, DeviceEnumerationFlags.AllDevices))
+                    joystickGuid = deviceInstance.InstanceGuid;
+
+                Thread.Sleep(100);
+            }
+
+            // Instantiate the joystick
+            joystick = new Joystick(directInput, joystickGuid);
+
+            // Found Gamepad
+
+            // Set BufferSize in order to use buffered data.
+            //joystick.Properties.BufferSize = 0;
+
+            // Acquire the joystick
+            joystick.Acquire();
+
+            controllerIsConnected = true;
+            Console.WriteLine("Controller found!");
+        }
+
+        public bool[] GetState()
+        {
+            bool[] states = new bool[6];
+            JoystickState state;
+            try
+            {
+                joystick.Poll();
+                state = joystick.GetCurrentState();
+            }
+            catch
+            {
+                return new bool[] { false, false, false, false, false, false };
+            }
+
+
+            for (int i = 0; i < 4; i++)
+            {
+                if(DPad[i, 0] == null)
+                {
+                    states[i] = state.Buttons[(int)DPad[i, 1]];
+                }
+                else
+                {
+                    states[i] = state.PointOfViewControllers[(int)DPad[i, 0]] == DPad[i,1] ? true : false;
+                }
+            }
+            if (Buttons[0, 0] == null)
+            {
+                states[4] = state.Buttons[(int)Buttons[0, 1]];
+            }
+            else
+            {
+                states[4] = state.PointOfViewControllers[(int)Buttons[0, 0]] == Buttons[0, 1] ? true : false;
+            }
+            states[5] = true;
+            return states;
+            //state.Buttons[1];
         }
     }
 
