@@ -328,6 +328,10 @@ namespace SADXOpenStates
                 foreach (var deviceInstance in directInput.GetDevices(SharpDX.DirectInput.DeviceType.Gamepad, DeviceEnumerationFlags.AllDevices))
                     joystickGuid = deviceInstance.InstanceGuid;
 
+                if (joystickGuid == Guid.Empty)
+                    foreach (var deviceInstance in directInput.GetDevices(SharpDX.DirectInput.DeviceType.Joystick, DeviceEnumerationFlags.AllDevices))
+                        joystickGuid = deviceInstance.InstanceGuid;
+
                 Thread.Sleep(100);
             }
 

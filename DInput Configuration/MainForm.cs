@@ -182,6 +182,10 @@ namespace DInput_Configuration
                 foreach (var deviceInstance in directInput.GetDevices(DeviceType.Gamepad, DeviceEnumerationFlags.AllDevices))
                     joystickGuid = deviceInstance.InstanceGuid;
 
+                if (joystickGuid == Guid.Empty)
+                    foreach (var deviceInstance in directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AllDevices))
+                        joystickGuid = deviceInstance.InstanceGuid;
+
                 Thread.Sleep(1000);
             }
 
@@ -198,6 +202,7 @@ namespace DInput_Configuration
             //Program.form.Invoke(new MethodInvoker(delegate { Program.form.Text = "DInput Configurator"; }));
             Program.form.Text = "DInput Configurator";
 
+            MessageBox.Show("Found controller : " + joystick.Information.InstanceName);
             controllerIsConnected = true;
             controllerIsInitializing = false;
         }
