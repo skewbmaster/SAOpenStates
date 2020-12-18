@@ -1,13 +1,15 @@
 ﻿using System;
 using System.Threading;
+using System.Linq;
+using System.IO;
+using System.Diagnostics;
+
 using SharpDX.XInput;
 using SharpDX.DirectInput;
 using Memory;
 using Newtonsoft.Json;
-using System.Linq;
-using System.IO;
+using Newtonsoft.Json.Linq;
 
-// Used for later
 using System.Configuration;
 using UserSettings = SADXOpenStates.Properties.Settings;
 
@@ -16,12 +18,12 @@ namespace SADXOpenStates
 {
     class Program
     {
+        public static Process gameProc = new Process();
         public static XController CONTROLLER; // Initialise controller for inputs
         public static DController DCONTROLLER;
 
         public static Mem m = new Mem(); // Initialise memory dll
 
-        public static Thread checkGame = new Thread(checkForProcess);
         public static bool gameHooked = false;
 
         //public static int[] memAddresses = { 0x03742E10, 0x0370EF35, 0x0370F128, 0x0370EF48, 0x0370EF34, 0x0370F0E4 }; // Character 1 offset, Time:(Frames, Seconds, Minutes), Lives, Rings
@@ -35,10 +37,14 @@ namespace SADXOpenStates
         {
             if (File.Exists("file.txt"))
             {
-                string json = File.ReadAllText("file.txt");
-                SaveStateSerializer SavesObject = JsonConvert.DeserializeObject<SaveStateSerializer>(json);
-
-                saveStates = SavesObject.SaveStates;
+                using (StreamReader reader = File.OpenText("file.txt"))
+                using (JsonTextReader treader = new JsonTextReader(reader))
+                {
+                    JObject jsonObj = (JObject)JToken.ReadFrom(treader);
+                    //jsonObj.Value<string>("Version"); //SaveState file version, useful for later when there's gonna be updates to the savestates themselves
+                    
+                    saveStates = jsonObj["SaveStates"].ToObject<SaveState[]>();
+                }
             }
 
             if (File.Exists("DInput.txt"))
@@ -66,33 +72,36 @@ namespace SADXOpenStates
 
             while (true)
             {
-                if (!m.OpenProcess("sonic.exe"))
+                try { gameProc = Process.GetProcessesByName("sonic").First(); }
+                catch
                 {
-                    System.Threading.Thread.Sleep(1000);
-                    continue;
+                    try { gameProc = Process.GetProcessesByName("Sonic Adventure DX").First(); }
+                    catch
+                    {
+                        Thread.Sleep(1000);
+                        continue;
+                    }
                 }
 
+                if (!m.OpenProcess(gameProc.Id))
+                {
+                    Thread.Sleep(1000);
+                    continue;
+                }
+                gameProc.Exited += GameProc_Exited;
+                gameProc.EnableRaisingEvents = true;
                 gameHooked = true;
                 Console.WriteLine("Game found!");
-                checkGame.Start();
                 return true;
             }
         }
 
-        public static void checkForProcess()
+        private static void GameProc_Exited(object sender, EventArgs e)
         {
-            while (true)
-            {
-                if (m.GetProcIdFromName("sonic") == 0)
-                {
-                    m.CloseProcess();
-                    gameHooked = false;
-                    Console.WriteLine("Game closed");
-                    break;
-                }
-
-                Thread.Sleep(1000);
-            }
+            m.CloseProcess();
+            gameProc.Exited -= GameProc_Exited;
+            gameHooked = false;
+            Console.WriteLine("Game closed");
         }
 
         public static void ConnectController()
@@ -144,11 +153,11 @@ namespace SADXOpenStates
                         DLeft = (buttonsPressed & 4) != 0 ? true : false;
                         DRight = (buttonsPressed & 8) != 0 ? true : false;
                         LB = (buttonsPressed & 256) != 0 ? true : false;
-                    } 
+                    }
                     else
                     {
                         bool[] Dinputs = DCONTROLLER.GetState();
-                        if(!Dinputs[5])
+                        if (!Dinputs[5])
                         {
                             DCONTROLLER.InitializeController();
                             continue;
@@ -161,7 +170,7 @@ namespace SADXOpenStates
                         LB = Dinputs[4];
                     }
 
-                    if(LB || !UserSettings.Default.extraInput)
+                    if (LB || !UserSettings.Default.extraInput)
                     {
                         if (DLeft && !hasSaved)
                         {
@@ -170,7 +179,7 @@ namespace SADXOpenStates
 
                             Console.WriteLine("Saved to {0}", curSaveState);
                             SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
-                            string json = JsonConvert.SerializeObject(SaveObjectToSerialize);
+                            string json = JsonConvert.SerializeObject(SaveObjectToSerialize, Formatting.Indented);
 
                             System.IO.File.WriteAllText("file.txt", json);
 
@@ -226,7 +235,6 @@ namespace SADXOpenStates
                     }
                 }
 
-                checkGame = new Thread(checkForProcess);
                 Hook();
             }
         }
@@ -283,12 +291,12 @@ namespace SADXOpenStates
     {
         private Controller controller;
 
-        public XController(UserIndex index) 
+        public XController(UserIndex index)
         {
             this.controller = new Controller(index);
         }
 
-        public State GetState() 
+        public State GetState()
         {
             return controller.GetState();
         }
@@ -367,13 +375,13 @@ namespace SADXOpenStates
 
             for (int i = 0; i < 4; i++)
             {
-                if(DPad[i, 0] == null)
+                if (DPad[i, 0] == null)
                 {
                     states[i] = state.Buttons[(int)DPad[i, 1]];
                 }
                 else
                 {
-                    states[i] = state.PointOfViewControllers[(int)DPad[i, 0]] == DPad[i,1] ? true : false;
+                    states[i] = state.PointOfViewControllers[(int)DPad[i, 0]] == DPad[i, 1] ? true : false;
                 }
             }
             if (Buttons[0, 0] == null)
