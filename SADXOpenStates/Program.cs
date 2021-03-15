@@ -6,7 +6,6 @@ using System.Diagnostics;
 
 using SharpDX.XInput;
 using SharpDX.DirectInput;
-using Memory;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -21,8 +20,7 @@ namespace SADXOpenStates
         public static Process gameProc = new Process();
         public static XController CONTROLLER; // Initialise controller for inputs
         public static DController DCONTROLLER;
-
-        public static Mem m = new Mem(); // Initialise memory dll
+        public static int baseAddress;
 
         public static bool gameHooked = false;
 
@@ -68,7 +66,7 @@ namespace SADXOpenStates
         {
             Console.WriteLine("Searching for game...");
 
-            //Console.WriteLine(m.GetProcIdFromName("sonic"));
+            //Console.WriteLine(ProcessMemory.GetProcIdFromName("sonic"));
 
             while (true)
             {
@@ -83,14 +81,10 @@ namespace SADXOpenStates
                     }
                 }
 
-                if (!m.OpenProcess(gameProc.Id))
-                {
-                    Thread.Sleep(1000);
-                    continue;
-                }
                 gameProc.Exited += GameProc_Exited;
                 gameProc.EnableRaisingEvents = true;
                 gameHooked = true;
+                baseAddress = gameProc.MainModule.BaseAddress.ToInt32();
                 Console.WriteLine("Game found!");
                 return true;
             }
@@ -98,7 +92,6 @@ namespace SADXOpenStates
 
         private static void GameProc_Exited(object sender, EventArgs e)
         {
-            m.CloseProcess();
             gameProc.Exited -= GameProc_Exited;
             gameHooked = false;
             Console.WriteLine("Game closed");
@@ -174,15 +167,17 @@ namespace SADXOpenStates
                     {
                         if (DLeft && !hasSaved)
                         {
-                            saveStates[curSaveState] = new SaveState(m);
+                            if (ProcessMemory.ReadByte(gameProc, baseAddress + 0x3722DE4) != 16)
+                            {
+                                saveStates[curSaveState] = new SaveState(ref gameProc, ref baseAddress);
 
+                                Console.WriteLine("Saved to {0}", curSaveState);
+                                SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
+                                string json = JsonConvert.SerializeObject(SaveObjectToSerialize, Formatting.Indented);
 
-                            Console.WriteLine("Saved to {0}", curSaveState);
-                            SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
-                            string json = JsonConvert.SerializeObject(SaveObjectToSerialize, Formatting.Indented);
+                                System.IO.File.WriteAllText("file.txt", json);
 
-                            System.IO.File.WriteAllText("file.txt", json);
-
+                            }
                             hasSaved = true;
                         }
                         else if (!DLeft && hasSaved)
@@ -195,9 +190,12 @@ namespace SADXOpenStates
                         {
                             if (saveStates[curSaveState] != null)
                             {
-                                LoadState(saveStates[curSaveState]);
+                                if (ProcessMemory.ReadByte(gameProc, baseAddress + 0x3722DE4) != 16)
+                                {
+                                    LoadState(saveStates[curSaveState]);
 
-                                Console.WriteLine("Loaded {0}", curSaveState);
+                                    Console.WriteLine("Loaded {0}", curSaveState);
+                                }
                             }
                             else
                             {
@@ -214,16 +212,19 @@ namespace SADXOpenStates
 
                         if ((DUp || DDown) && !hasSwitched)
                         {
-                            //Console.WriteLine(Convert.ToInt32(UserSettings.Default.invertCycle));
+                            if (ProcessMemory.ReadByte(gameProc, baseAddress + 0x3722DE4) != 16)
+                            {
+                                //Console.WriteLine(Convert.ToInt32(UserSettings.Default.invertCycle));
 
-                            curSaveState += Convert.ToInt32(DUp) * invertCycle;
-                            curSaveState -= Convert.ToInt32(DDown) * invertCycle;
+                                curSaveState += Convert.ToInt32(DUp) * invertCycle;
+                                curSaveState -= Convert.ToInt32(DDown) * invertCycle;
 
-                            if (curSaveState == -1) curSaveState = 9;
-                            else if (curSaveState == 10) curSaveState = 0;
+                                if (curSaveState == -1) curSaveState = 9;
+                                else if (curSaveState == 10) curSaveState = 0;
 
-                            Console.WriteLine("Switched to save slot {0}", curSaveState);
+                                Console.WriteLine("Switched to save slot {0}", curSaveState);
 
+                            }
                             hasSwitched = true;
                         }
                         else if (!(DUp || DDown) && hasSwitched)
@@ -242,47 +243,48 @@ namespace SADXOpenStates
         public static void LoadState(SaveState state)
         {
             // Write Position into memory
-            m.WriteMemory("base+03742E10,20", "float", state.xPos.ToString());
-            m.WriteMemory("base+03742E10,24", "float", state.yPos.ToString());
-            m.WriteMemory("base+03742E10,28", "float", state.zPos.ToString());
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x20), state.xPos);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x24), state.yPos);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x28), state.zPos);
 
-            //m.WriteMemory("base+0372CAB0", "float", state.xPos.ToString());
-            //m.WriteMemory("base+0372CAB4", "float", state.xPos.ToString());
-            //m.WriteMemory("base+0372CAB8", "float", state.xPos.ToString());
+            //ProcessMemory.Write("base+0372CAB0", "float", state.xPos.ToString());
+            //ProcessMemory.Write("base+0372CAB4", "float", state.xPos.ToString());
+            //ProcessMemory.Write("base+0372CAB8", "float", state.xPos.ToString());
 
             // Write Rotation into memory
-            m.WriteMemory("base+03742E10,14", "2bytes", state.xRot.ToString());
-            m.WriteMemory("base+03742E10,18", "2bytes", state.yRot.ToString());
-            m.WriteMemory("base+03742E10,1C", "2bytes", state.zRot.ToString());
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x14), state.xRot);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x18), state.yRot);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x1C), state.zRot);
 
             // Write Speed into memory
-            m.WriteMemory("base+373CDF0,38", "float", state.hSpeed.ToString());
-            m.WriteMemory("base+373CDF0,3C", "float", state.vSpeed.ToString());
-            m.WriteMemory("base+373CDF0,8", "2bytes", state.hover.ToString());
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x38), state.hSpeed);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x3C), state.vSpeed);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x8), state.hover);
 
             // Write Lives and rings into memory
-            m.WriteMemory("base+0370EF34", "int", state.lives.ToString());
-            m.WriteMemory("base+0370F0E4", "int", state.rings.ToString());
+            ProcessMemory.Write(gameProc, baseAddress + 0x0370EF34, state.lives);
+            ProcessMemory.Write(gameProc, baseAddress + 0x0370F0E4, state.rings);
 
             // Write time into memory
-            m.WriteMemory("base+0370EF35", "int", state.tFrames.ToString());
-            m.WriteMemory("base+0370F128", "int", state.tSeconds.ToString());
-            m.WriteMemory("base+0370EF48", "int", state.tMins.ToString());
+            ProcessMemory.Write(gameProc, baseAddress + 0x0370EF35, state.tFrames);
+            ProcessMemory.Write(gameProc, baseAddress + 0x0370F128, state.tSeconds);
+            ProcessMemory.Write(gameProc, baseAddress + 0x0370EF48, state.tMins);
 
 
 
             // Write camera info into memory
-            if (m.ReadByte("base+372CBA8") != 7)
+            if (ProcessMemory.ReadByte(gameProc, 0x372CBA8) != 7)
             {
-                m.WriteMemory("base+0372CBB0,20", "float", state.camX.ToString());
-                m.WriteMemory("base+0372CBB0,24", "float", state.camY.ToString());
-                m.WriteMemory("base+0372CBB0,28", "float", state.camZ.ToString());
+                
+                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x20), state.camX);
+                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x24), state.camY);
+                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x28), state.camZ);
 
-                m.WriteMemory("base+0372CBB0,14", "2bytes", state.camXRot.ToString());
-                m.WriteMemory("base+0372CBB0,18", "2bytes", state.camYRot.ToString());
-                m.WriteMemory("base+0372CBB0,1C", "2bytes", state.camZRot.ToString());
+                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x14), state.camXRot);
+                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x18), state.camYRot);
+                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x1C), state.camZRot);
 
-                //m.WriteMemory("base+372CAE1", "byte", "0");
+                //ProcessMemory.Write("base+372CAE1", "byte", "0");
             }
         }
     }
@@ -417,34 +419,33 @@ namespace SADXOpenStates
 
         public float camX, camY, camZ;
         public int camXRot, camYRot, camZRot;
-
-        public SaveState(Mem memwatch)
+        public const SaveState Empty = default(SaveState);
+        public SaveState(ref Process gameProc, ref int baseAddress)
         {
+            this.xPos = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x20));
+            this.yPos = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x24));
+            this.zPos = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x28));
+            this.xRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x14));
+            this.yRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x18));
+            this.zRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x1C));
 
-            this.xPos = memwatch.ReadFloat("base+03742E10,20");
-            this.yPos = memwatch.ReadFloat("base+03742E10,24");
-            this.zPos = memwatch.ReadFloat("base+03742E10,28");
-            this.xRot = memwatch.Read2Byte("base+03742E10,14");
-            this.yRot = memwatch.Read2Byte("base+03742E10,18");
-            this.zRot = memwatch.Read2Byte("base+03742E10,1C");
+            this.hSpeed = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x38));
+            this.vSpeed = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x3C));
+            this.hover = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x8));
 
-            this.hSpeed = memwatch.ReadFloat("base+373CDF0,38");
-            this.vSpeed = memwatch.ReadFloat("base+373CDF0,3C");
-            this.hover = memwatch.Read2Byte("base+373CDF0,8");
+            this.lives = ProcessMemory.ReadByte(gameProc, baseAddress + 0x0370EF34);
+            this.rings = ProcessMemory.ReadInt16(gameProc, baseAddress + 0x0370F0E4);
 
-            this.lives = memwatch.ReadByte("base+0370EF34");
-            this.rings = memwatch.Read2Byte("base+0370F0E4");
+            this.tFrames = ProcessMemory.ReadByte(gameProc, baseAddress + 0x0370EF35);
+            this.tSeconds = ProcessMemory.ReadByte(gameProc, baseAddress + 0x0370F128);
+            this.tMins = ProcessMemory.ReadByte(gameProc, baseAddress + 0x0370EF48);
 
-            this.tFrames = memwatch.ReadByte("base+0370EF35");
-            this.tSeconds = memwatch.ReadByte("base+0370F128");
-            this.tMins = memwatch.ReadByte("base+0370EF48");
-
-            this.camX = memwatch.ReadFloat("base+0372CBB0,20");
-            this.camY = memwatch.ReadFloat("base+0372CBB0,24");
-            this.camZ = memwatch.ReadFloat("base+0372CBB0,28");
-            this.camXRot = memwatch.Read2Byte("base+0372CBB0,14");
-            this.camYRot = memwatch.Read2Byte("base+0372CBB0,18");
-            this.camZRot = memwatch.Read2Byte("base+0372CBB0,1C");
+            this.camX = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x20));
+            this.camY = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x24));
+            this.camZ = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x28));
+            this.camXRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x14));
+            this.camYRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x18));
+            this.camZRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x1C));
         }
         [JsonConstructor]
         public SaveState(float xPos, float yPos, float zPos, float xRot, float yRot, float zRot, float hSpeed, float vSpeed, int hover, int lives, int rings, int tFrames, int tSeconds, int tMins, float camX, float camY, float camZ, int camXRot, int camYRot, int camZRot)
