@@ -23,9 +23,7 @@ namespace SADXOpenStates
         public static int baseAddress;
 
         public static bool gameHooked = false;
-
-        //public static int[] memAddresses = { 0x03742E10, 0x0370EF35, 0x0370F128, 0x0370EF48, 0x0370EF34, 0x0370F0E4 }; // Character 1 offset, Time:(Frames, Seconds, Minutes), Lives, Rings
-
+        
         public static SaveState[] saveStates = new SaveState[10]; // Create 10 save states
         public static int curSaveState = 0;
 
@@ -33,9 +31,9 @@ namespace SADXOpenStates
 
         static void Main(string[] args)
         {
-            if (File.Exists("file.txt"))
+            if (File.Exists("states.txt"))
             {
-                using (StreamReader reader = File.OpenText("file.txt"))
+                using (StreamReader reader = File.OpenText("states.txt"))
                 using (JsonTextReader treader = new JsonTextReader(reader))
                 {
                     JObject jsonObj = (JObject)JToken.ReadFrom(treader);
@@ -120,6 +118,8 @@ namespace SADXOpenStates
             bool hasSaved = false, hasLoaded = false, hasSwitched = false;
             bool DLeft, DRight, DUp, DDown, LB;
 
+            byte gameState = 21;
+
             int invertCycle = UserSettings.Default.invertCycle ? -1 : 1;
 
             while (true)
@@ -167,7 +167,8 @@ namespace SADXOpenStates
                     {
                         if (DLeft && !hasSaved)
                         {
-                            if (ProcessMemory.ReadByte(gameProc, baseAddress + 0x3722DE4) != 16)
+                            gameState = ProcessMemory.ReadByte(gameProc, baseAddress + 0x3722DE4);
+                            if (gameState != 16 && gameState != 21)
                             {
                                 saveStates[curSaveState] = new SaveState(ref gameProc, ref baseAddress);
 
@@ -175,8 +176,7 @@ namespace SADXOpenStates
                                 SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
                                 string json = JsonConvert.SerializeObject(SaveObjectToSerialize, Formatting.Indented);
 
-                                System.IO.File.WriteAllText("file.txt", json);
-
+                                System.IO.File.WriteAllText("states.txt", json);
                             }
                             hasSaved = true;
                         }
@@ -247,10 +247,6 @@ namespace SADXOpenStates
             ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x24), state.yPos);
             ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x28), state.zPos);
 
-            //ProcessMemory.Write("base+0372CAB0", "float", state.xPos.ToString());
-            //ProcessMemory.Write("base+0372CAB4", "float", state.xPos.ToString());
-            //ProcessMemory.Write("base+0372CAB8", "float", state.xPos.ToString());
-
             // Write Rotation into memory
             ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x14), state.xRot);
             ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x18), state.yRot);
@@ -270,12 +266,17 @@ namespace SADXOpenStates
             ProcessMemory.Write(gameProc, baseAddress + 0x0370F128, state.tSeconds);
             ProcessMemory.Write(gameProc, baseAddress + 0x0370EF48, state.tMins);
 
+            // Write more player info
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x0), state.action);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x124), state.anim);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x130), state.animFrame);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x4), state.playerStates);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x5), state.playerStates2);
 
 
             // Write camera info into memory
             if (ProcessMemory.ReadByte(gameProc, 0x372CBA8) != 7)
             {
-                
                 ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x20), state.camX);
                 ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x24), state.camY);
                 ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x28), state.camZ);
@@ -283,8 +284,7 @@ namespace SADXOpenStates
                 ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x14), state.camXRot);
                 ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x18), state.camYRot);
                 ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x1C), state.camZRot);
-
-                //ProcessMemory.Write("base+372CAE1", "byte", "0");
+                
             }
         }
     }
@@ -407,18 +407,22 @@ namespace SADXOpenStates
         [JsonConstructor]
         public SaveStateSerializer(SaveState[] saves)
         {
-            Version = "1";
+            Version = "2";
             SaveStates = saves;
         }
     }
 
     public class SaveState
     {
-        public float xPos, yPos, zPos, xRot, yRot, zRot, hSpeed, vSpeed;
-        public int lives, rings, hover, tFrames, tSeconds, tMins;
+        public float xPos, yPos, zPos, hSpeed, vSpeed, animFrame;
+
+        public byte tFrames, tSeconds, tMins, lives, action, anim, playerStates, playerStates2;
+        public short xRot, yRot, zRot, rings, hover;
+
 
         public float camX, camY, camZ;
-        public int camXRot, camYRot, camZRot;
+        public short camXRot, camYRot, camZRot;
+
         public const SaveState Empty = default(SaveState);
         public SaveState(ref Process gameProc, ref int baseAddress)
         {
@@ -446,9 +450,15 @@ namespace SADXOpenStates
             this.camXRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x14));
             this.camYRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x18));
             this.camZRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x1C));
+
+            this.action = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x0));
+            this.anim = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x124));
+            this.animFrame = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x130));
+            this.playerStates = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x4));
+            this.playerStates2 = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x5));
         }
         [JsonConstructor]
-        public SaveState(float xPos, float yPos, float zPos, float xRot, float yRot, float zRot, float hSpeed, float vSpeed, int hover, int lives, int rings, int tFrames, int tSeconds, int tMins, float camX, float camY, float camZ, int camXRot, int camYRot, int camZRot)
+        public SaveState(float xPos, float yPos, float zPos, short xRot, short yRot, short zRot, float hSpeed, float vSpeed, short hover, byte lives, short rings, byte tFrames, byte tSeconds, byte tMins, float camX, float camY, float camZ, short camXRot, short camYRot, short camZRot, byte action, byte anim, float animFrame, byte playerStates, byte playerStates2)
         {
             this.xPos = xPos;
             this.yPos = yPos;
@@ -474,6 +484,12 @@ namespace SADXOpenStates
             this.camXRot = camXRot;
             this.camYRot = camYRot;
             this.camZRot = camZRot;
+
+            this.action = action;
+            this.anim = anim;
+            this.animFrame = animFrame;
+            this.playerStates = playerStates;
+            this.playerStates2 = playerStates2;
         }
     }
 }
