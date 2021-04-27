@@ -31,9 +31,9 @@ namespace SADXOpenStates
 
         static void Main(string[] args)
         {
-            if (File.Exists("states.txt"))
+            if (File.Exists("states.json"))
             {
-                using (StreamReader reader = File.OpenText("states.txt"))
+                using (StreamReader reader = File.OpenText("states.json"))
                 using (JsonTextReader treader = new JsonTextReader(reader))
                 {
                     JObject jsonObj = (JObject)JToken.ReadFrom(treader);
@@ -176,7 +176,7 @@ namespace SADXOpenStates
                                 SaveStateSerializer SaveObjectToSerialize = new SaveStateSerializer(saveStates);
                                 string json = JsonConvert.SerializeObject(SaveObjectToSerialize, Formatting.Indented);
 
-                                System.IO.File.WriteAllText("states.txt", json);
+                                System.IO.File.WriteAllText("states.json", json);
                             }
                             hasSaved = true;
                         }
