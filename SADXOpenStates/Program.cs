@@ -275,17 +275,13 @@ namespace SADXOpenStates
 
 
             // Write camera info into memory
-            if (ProcessMemory.ReadByte(gameProc, 0x372CBA8) != 7)
-            {
-                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x20), state.camX);
-                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x24), state.camY);
-                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x28), state.camZ);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x20), state.camX);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x24), state.camY);
+            ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x28), state.camZ);
 
-                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x14), state.camXRot);
-                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x18), state.camYRot);
-                ProcessMemory.Write(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x1C), state.camZRot);
+            ProcessMemory.Write(gameProc, baseAddress + 0x0372C968, state.camXRot);
+            ProcessMemory.Write(gameProc, baseAddress + 0x0372C96C, state.camYRot);
                 
-            }
         }
     }
 
@@ -421,7 +417,7 @@ namespace SADXOpenStates
 
 
         public float camX, camY, camZ;
-        public short camXRot, camYRot, camZRot;
+        public short camXRot, camYRot;
 
         public const SaveState Empty = default(SaveState);
         public SaveState(ref Process gameProc, ref int baseAddress)
@@ -447,9 +443,8 @@ namespace SADXOpenStates
             this.camX = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x20));
             this.camY = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x24));
             this.camZ = ProcessMemory.ReadSingle(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x28));
-            this.camXRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x14));
-            this.camYRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x18));
-            this.camZRot = ProcessMemory.ReadInt16(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0372CBB0, 0x1C));
+            this.camXRot = ProcessMemory.ReadInt16(gameProc, baseAddress + 0x0372C968);
+            this.camYRot = ProcessMemory.ReadInt16(gameProc, baseAddress + 0x0372C96C);
 
             this.action = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x0));
             this.anim = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x0373CDF0, 0x124));
@@ -458,7 +453,7 @@ namespace SADXOpenStates
             this.playerStates2 = ProcessMemory.ReadByte(gameProc, ProcessMemory.GetFinalAddress(gameProc, baseAddress + 0x03742E10, 0x5));
         }
         [JsonConstructor]
-        public SaveState(float xPos, float yPos, float zPos, short xRot, short yRot, short zRot, float hSpeed, float vSpeed, short hover, byte lives, short rings, byte tFrames, byte tSeconds, byte tMins, float camX, float camY, float camZ, short camXRot, short camYRot, short camZRot, byte action, byte anim, float animFrame, byte playerStates, byte playerStates2)
+        public SaveState(float xPos, float yPos, float zPos, short xRot, short yRot, short zRot, float hSpeed, float vSpeed, short hover, byte lives, short rings, byte tFrames, byte tSeconds, byte tMins, float camX, float camY, float camZ, short camXRot, short camYRot, byte action, byte anim, float animFrame, byte playerStates, byte playerStates2)
         {
             this.xPos = xPos;
             this.yPos = yPos;
@@ -483,7 +478,6 @@ namespace SADXOpenStates
             this.camZ = camZ;
             this.camXRot = camXRot;
             this.camYRot = camYRot;
-            this.camZRot = camZRot;
 
             this.action = action;
             this.anim = anim;
