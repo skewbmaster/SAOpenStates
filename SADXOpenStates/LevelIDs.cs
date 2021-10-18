@@ -1,0 +1,42 @@
+﻿namespace SADXOpenStates
+{
+    public enum LevelIDs : byte
+    {
+        HedgehogHammer = 0x00,
+        EmeraldCoast = 0x1,
+        WindyValley = 0x2,
+        TwinklePark = 0x3,
+        SpeedHighway = 0x4,
+        RedMountain = 0x5,
+        SkyDeck = 0x6,
+        LostWorld = 0x7,
+        IceCap = 0x8,
+        Casinopolis = 0x9,
+        FinalEgg = 0xA,
+        HotShelter = 0xC,
+        Chaos0 = 0xF,
+        Chaos2 = 0x10,
+        Chaos4 = 0x11,
+        Chaos6 = 0x12,
+        PerfectChaos = 0x13,
+        EggHornet = 0x14,
+        EggWalker = 0x15,
+        EggViper = 0x16,
+        Zero = 0x17,
+        E101 = 0x18,
+        E101R = 0x19,
+        StationSquare = 0x1A,
+        EggCarrierOutside = 0x1D,
+        EggCarrierInside = 0x20,
+        MysticRuins = 0x21,
+        Past = 0x22,
+        TwinkleCircuit = 0x23,
+        SkyChase1 = 0x24,
+        SkyChase2 = 0x25,
+        SandHill = 0x26,
+        SSGarden = 0x27,
+        ECGarden = 0x28,
+        MRGarden = 0x29,
+        ChaoRace = 0x2A
+    }
+}
