@@ -41,18 +41,10 @@ namespace SADXOpenStates
                     saveStates = jsonObj["SaveStates"]?.ToObject<SaveState[]>();
                 }
             }*/
-            
+
             if (File.Exists("save.states"))
             {
-                byte[] data = Convert.FromBase64String(File.ReadAllText("save.states"));
-                
-                using (MemoryStream ms = new MemoryStream(data))
-                using (BsonDataReader reader = new BsonDataReader(ms))
-                {
-                    JsonSerializer serializer = new JsonSerializer();
-
-                    saveStates = serializer.Deserialize<SaveState[]>(reader);
-                }
+                saveStates = SaveStateSerialization.DeserializeStates();
             }
 
             if (File.Exists("DInput.txt")) // If DInput is configured (DInput file exists) then use the DInput code
@@ -147,10 +139,10 @@ namespace SADXOpenStates
 
             // Write more player info
             gameProc.Write(speedPointer + 0x124, state.animData);
-            gameProc.Write(gameProc.GetFinalAddress(0x03B42E10), state.actionData);
+            gameProc.Write(gameProc.GetFinalAddress(0x03B42E10, 0x0), state.actionData);
             
             // Write camera info into memory
-            gameProc.Write(gameProc.GetFinalAddress(baseAddress + 0x0372CBB0, 0x20), state.camera1);
+            //gameProc.Write(gameProc.GetFinalAddress(0x03B2CBB0, 0x20), state.camera1);
 
             // Working free cam address
             gameProc.Write(0x3B2C968, state.freeCamera);

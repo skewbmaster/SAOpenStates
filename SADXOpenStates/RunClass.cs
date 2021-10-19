@@ -75,17 +75,8 @@ namespace SADXOpenStates
                             //string json = JsonConvert.SerializeObject(saveObjectToSerialize, Formatting.Indented);
 
                             //File.WriteAllText("states.json", json);
-
-                            MemoryStream ms = new MemoryStream();
-                            using (BsonDataWriter writer = new BsonDataWriter(ms))
-                            {
-                                JsonSerializer serializer = new JsonSerializer();
-                                serializer.Serialize(writer, saveStates);
-                            }
-
-                            string data = Convert.ToBase64String(ms.ToArray());
-                            Console.WriteLine(data);
-                            File.WriteAllText("save.states", data);
+                            
+                            SaveStateSerialization.SerialiseStates(saveStates);
                         }
                         hasSaved = true;
                     }

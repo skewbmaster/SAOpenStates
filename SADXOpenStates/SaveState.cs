@@ -1,16 +1,15 @@
 ﻿using System;
 using System.Diagnostics;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Bson;
 
 namespace SADXOpenStates
 {
     public class SaveState
     {
-        public readonly byte[] pos, rot, camera1, speed, animData, actionData, freeCamera;
+        public byte[] pos, rot, camera1, speed, animData, actionData, freeCamera;
 
-        public readonly byte tFrames, tSeconds, tMins, lives;
-        public readonly short rings, hover;
+        public byte tFrames, tSeconds, tMins, lives, curLevel, curAct, curChar;
+        public short rings, hover;
 
         public const SaveState Empty = default(SaveState);
         public SaveState(ref Process gameProc, ref int baseAddress)
@@ -30,11 +29,15 @@ namespace SADXOpenStates
             tSeconds = gameProc.ReadByte(0x03B0F128);
             tMins = gameProc.ReadByte(0x03B0EF48);
 
-            camera1 = gameProc.ReadBytes(gameProc.GetFinalAddress(0x03B2CBB0, 0x20), 12);
+            //camera1 = gameProc.ReadBytes(gameProc.GetFinalAddress(0x03B2CBB0, 0x0), 0x50);
             freeCamera = gameProc.ReadBytes(0x3B2C968, 6);
             
             animData = gameProc.ReadBytes(speedPointer + 0x124, 16);
             actionData = gameProc.ReadBytes(gameProc.GetFinalAddress(0x03B42E10, 0x0), 5);
+
+            curLevel = gameProc.ReadByte(0x3B22DCC);
+            curAct = gameProc.ReadByte(0x3B22DEC);
+            curChar = gameProc.ReadByte(0x3B22DC0);
         }
         
         [JsonConstructor]
