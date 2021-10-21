@@ -360,3 +360,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+.idea/.idea.SADXOpenStates/.idea/workspace.xml
+.idea/.idea.SADXOpenStates/.idea/projectSettingsUpdater.xml
