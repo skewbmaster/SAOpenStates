@@ -71,10 +71,6 @@ namespace SADXOpenStates
                             saveStates[curSaveState] = new SaveState(ref gameProc, ref baseAddress);
 
                             Console.WriteLine("Saved to {0}", curSaveState);
-                            //SaveStateSerializer saveObjectToSerialize = new SaveStateSerializer(saveStates);
-                            //string json = JsonConvert.SerializeObject(saveObjectToSerialize, Formatting.Indented);
-
-                            //File.WriteAllText("states.json", json);
                             
                             SaveStateSerialization.SerialiseStates(saveStates);
                         }

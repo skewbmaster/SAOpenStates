@@ -27,27 +27,29 @@ namespace SADXOpenStates
                     
                     binWriter.Write((byte)i); // Write one byte for the savestate index
                     
-                    binWriter.Write(state.pos);
-                    binWriter.Write(state.rot);
-                    binWriter.Write(state.speed);
+                    binWriter.Write(state.pos); // 0xC
+                    binWriter.Write(state.rot); // 0xC
+                    binWriter.Write(state.speed); // 0xC
                     
-                    binWriter.Write(state.hover);
-                    binWriter.Write(state.lives);
-                    binWriter.Write(state.rings);
+                    binWriter.Write(state.hover); // 0x2
+                    binWriter.Write(state.lives); // 0x1
+                    binWriter.Write(state.rings); // 0x2
                     
-                    binWriter.Write(state.tFrames);
-                    binWriter.Write(state.tSeconds);
-                    binWriter.Write(state.tMins);
+                    binWriter.Write(state.tFrames); // 0x1
+                    binWriter.Write(state.tSeconds); // 0x1
+                    binWriter.Write(state.tMins); // 0x1
                     
-                    //binWriter.Write(state.camera1);
-                    binWriter.Write(state.freeCamera);
+                    binWriter.Write(state.cameraStruct1); // 0x50
+                    binWriter.Write(state.cameraStructOther); // 0x120
+                    binWriter.Write(state.lastCameraPos); // 0xC
+                    binWriter.Write(state.freeCamera); // 0x6
                     
-                    binWriter.Write(state.animData);
-                    binWriter.Write(state.actionData);
+                    binWriter.Write(state.animData); // 0x10
+                    binWriter.Write(state.actionData); // 0x5
                     
-                    binWriter.Write(state.curLevel);
-                    binWriter.Write(state.curAct);
-                    binWriter.Write(state.curChar);
+                    binWriter.Write(state.curLevel); // 0x1
+                    binWriter.Write(state.curAct); // 0x1
+                    binWriter.Write(state.curChar); // 0x1
                 }
             }
         }
@@ -65,23 +67,29 @@ namespace SADXOpenStates
                 for (int i = 0; i < stateNumber; i++)
                 {
                     int index = binReader.ReadByte();
-                    Console.WriteLine(index);
 
                     states[index] = new SaveState
                     {
-                        pos = binReader.ReadBytes(12),
-                        rot = binReader.ReadBytes(12),
-                        speed = binReader.ReadBytes(12),
+                        pos = binReader.ReadBytes(0xC),
+                        rot = binReader.ReadBytes(0xC),
+                        speed = binReader.ReadBytes(0xC),
+                        
                         hover = binReader.ReadInt16(),
                         lives = binReader.ReadByte(),
                         rings = binReader.ReadInt16(),
+                        
                         tFrames = binReader.ReadByte(),
                         tSeconds = binReader.ReadByte(),
                         tMins = binReader.ReadByte(),
-                        //camera1 = binReader.ReadBytes(50),
-                        freeCamera = binReader.ReadBytes(6),
-                        animData = binReader.ReadBytes(16),
-                        actionData = binReader.ReadBytes(5),
+                        
+                        cameraStruct1 = binReader.ReadBytes(0x50),
+                        cameraStructOther = binReader.ReadBytes(0x120),
+                        lastCameraPos = binReader.ReadBytes(0xC),
+                        freeCamera = binReader.ReadBytes(0x6),
+                        
+                        animData = binReader.ReadBytes(0x10),
+                        actionData = binReader.ReadBytes(0x5),
+                        
                         curLevel = binReader.ReadByte(),
                         curAct = binReader.ReadByte(),
                         curChar = binReader.ReadByte()
